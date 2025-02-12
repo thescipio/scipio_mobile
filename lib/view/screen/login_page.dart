@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:scipio/view/screen/dashboard_page.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,10 +47,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final requestData = {
         'username': _savedUsername,
-        'passkey': passkey, 
+        'passkey': passkey,
       };
-
-      print('Request body: ${json.encode(requestData)}');
 
       final response = await _dio.post(
         'https://canna.hlcyn.co/api/auth',
@@ -60,23 +60,21 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      print('Response payload: ${response.data}');
-
       final data = response.data;
       if (data["token"] != null) {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', data["token"]);
         _showSnackBar('Login successful');
+        
+        // Arahkan ke Dashboard setelah login sukses
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
       } else {
         _showSnackBar('Login failed');
       }
     } catch (e) {
-      if (e is DioException) {
-        print(
-            'Error during login: ${e.response?.data}'); 
-      } else {
-        print('Unexpected error: $e');
-      }
       _showSnackBar('Login failed');
     }
   }
