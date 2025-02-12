@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart'; // Import the intl package
-import 'package:scipio/view/screen/login_page.dart'; // Import the LoginPage
+import 'package:intl/intl.dart'; 
+import 'package:scipio/view/screen/login_page.dart';
+import 'package:scipio/view/screen/new_post_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const IssueTrackerPage(); // Display IssueTrackerPage in DashboardPage
+    return const IssueTrackerPage(); 
   }
 }
 
@@ -35,10 +36,9 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
       final response = await _dio.get('https://canna.hlcyn.co/api/issue');
       if (response.statusCode == 200) {
         setState(() {
-          _issues = response.data['data']; // Extract the 'data' field
+          _issues = response.data['data']; 
         });
       } else {
-        // Handle the error if the response status code is not 200
         print('Failed to load issues: ${response.statusCode}');
       }
     } catch (e) {
@@ -46,11 +46,10 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
     }
   }
 
-  // Function to format the date
   String _formatDate(String date) {
     final DateTime parsedDate = DateTime.parse(date);
     final DateFormat formatter =
-        DateFormat('MMM dd, yyyy'); // Format: Jan 30, 2025
+        DateFormat('MMM dd, yyyy');
     return formatter.format(parsedDate);
   }
 
@@ -73,14 +72,12 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout), // Logout icon
+            icon: const Icon(Icons.logout), 
             onPressed: () async {
-              // Remove the auth_token from SharedPreferences
               final SharedPreferences prefs =
                   await SharedPreferences.getInstance();
               await prefs.remove('auth_token');
 
-              // Navigate to LoginPage after logout
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -111,7 +108,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
                     title: issue['title'],
                     author: issue['author_name'],
                     device: issue['device_parsed'],
-                    date: _formatDate(issue['date']), // Format the date here
+                    date: _formatDate(issue['date']),
                   );
                 },
               ),
@@ -120,10 +117,15 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: colorScheme.secondary,
-        child: const Icon(Icons.add),
-      ),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ReportIssuePage()),
+    );
+  },
+  backgroundColor: colorScheme.secondary,
+  child: const Icon(Icons.add),
+),
     );
   }
 }

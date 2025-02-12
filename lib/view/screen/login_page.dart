@@ -66,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('auth_token', data["token"]);
         _showSnackBar('Login successful');
         
-        // Arahkan ke Dashboard setelah login sukses
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardPage()),
