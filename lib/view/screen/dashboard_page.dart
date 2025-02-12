@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart'; 
 import 'package:scipio/view/screen/login_page.dart';
 import 'package:scipio/view/screen/new_post_page.dart';
+import 'package:scipio/view/screen/issues_detail.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -149,52 +150,67 @@ class IssueCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
-      color: colorScheme.surfaceVariant,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => IssueDetailPage(
+              title: title,
+              author: author,
+              device: device,
+              date: date,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: colorScheme.surfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.person, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  author,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.phone_android, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  device,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              date,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    author,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.phone_android, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    device,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                date,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
         ),
       ),
     );
