@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'edit_post_page.dart';
 
 class IssueDetailPage extends StatefulWidget {
   final String issueId;
@@ -20,12 +21,14 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
   Map<String, dynamic> _issueDetails = {};
   List<dynamic> _comments = [];
   final TextEditingController _commentController = TextEditingController();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _fetchIssueDetails();
     _fetchComments();
+    _fetchCurrentUserId();
   }
 
   Future<void> _fetchIssueDetails() async {
@@ -34,7 +37,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
           .get('https://canna.hlcyn.co/api/issue/post/${widget.issueId}');
       if (response.statusCode == 200) {
         setState(() {
-          _issueDetails = response.data['data'];
+          _issueDetails = response.data['data'] ?? {};
         });
       } else {
         print('Failed to load issue details: ${response.statusCode}');
@@ -57,6 +60,35 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       }
     } catch (e) {
       print('Error fetching comments: $e');
+    }
+  }
+
+  Future<void> _fetchCurrentUserId() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? authToken = prefs.getString('auth_token');
+
+      if (authToken == null) {
+        print('No auth token found');
+        return;
+      }
+
+      final response = await _dio.get(
+        'https://canna.hlcyn.co/api/myid',
+        options: Options(headers: {
+          'Authorization': 'Bearer $authToken',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _currentUserId = response.data['userid'];
+        });
+      } else {
+        print('Failed to load user ID: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching user ID: $e');
     }
   }
 
@@ -163,6 +195,32 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          if (_issueDetails['user_id'] == _currentUserId)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () async {
+                bool? result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditIssuePage(
+                      issueId: widget.issueId,
+                      initialTitle: _issueDetails['title'] ?? '',
+                      initialDevice: _issueDetails['device'] ?? '',
+                      initialVersion: _issueDetails['version'] ?? '',
+                      initialDescription: _issueDetails['description'] ?? '',
+                      initialAttachmentLink:
+                          _issueDetails['attachment_link'] ?? '',
+                    ),
+                  ),
+                );
+                if (result == true) {
+                  _fetchIssueDetails();
+                  _fetchComments();
+                }
+              },
+            ),
+        ],
       ),
       body: _issueDetails.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -172,13 +230,15 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   IssueHeader(
-                    author: _issueDetails['author_name'],
-                    device: _issueDetails['device_parsed'],
-                    date: _formatDate(_issueDetails['date']),
+                    author: _issueDetails['author_name'] ?? 'Unknown',
+                    device: _issueDetails['device_parsed'] ?? 'Unknown',
+                    date: _formatDate(
+                        _issueDetails['date'] ?? DateTime.now().toString()),
                   ),
                   const SizedBox(height: 16),
                   IssueDetail(
-                    description: _issueDetails['description'],
+                    description: _issueDetails['description'] ??
+                        'No description provided.',
                   ),
                   const SizedBox(height: 16),
                   CommentSection(comments: _comments),
@@ -314,18 +374,18 @@ class CommentSection extends StatelessWidget {
                     children: [
                       const Icon(Icons.comment, color: Colors.white),
                       const SizedBox(width: 8),
-                      Text(comment['author_name'],
+                      Text(comment['author_name'] ?? 'Unknown',
                           style: TextStyle(color: colorScheme.onSurface)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    comment['description'],
+                    comment['description'] ?? 'No description provided.',
                     style: TextStyle(color: colorScheme.onSurface),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _formatDate(comment['date']),
+                    _formatDate(comment['date'] ?? DateTime.now().toString()),
                     style: const TextStyle(color: Colors.grey),
                   ),
                 ],
