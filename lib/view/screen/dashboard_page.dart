@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 import 'package:scipio/view/screen/login_page.dart';
-import 'package:scipio/view/screen/new_post_page.dart';
 import 'package:scipio/view/screen/issues_detail.dart';
+import 'new_post_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const IssueTrackerPage(); 
+    return const IssueTrackerPage();
   }
 }
 
@@ -37,7 +37,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
       final response = await _dio.get('https://canna.hlcyn.co/api/issue');
       if (response.statusCode == 200) {
         setState(() {
-          _issues = response.data['data']; 
+          _issues = response.data['data'];
         });
       } else {
         print('Failed to load issues: ${response.statusCode}');
@@ -49,8 +49,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
 
   String _formatDate(String date) {
     final DateTime parsedDate = DateTime.parse(date);
-    final DateFormat formatter =
-        DateFormat('MMM dd, yyyy');
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
     return formatter.format(parsedDate);
   }
 
@@ -73,7 +72,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout), 
+            icon: const Icon(Icons.logout),
             onPressed: () async {
               final SharedPreferences prefs =
                   await SharedPreferences.getInstance();
@@ -118,15 +117,18 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ReportIssuePage()),
-    );
-  },
-  backgroundColor: colorScheme.secondary,
-  child: const Icon(Icons.add),
-),
+        onPressed: () async {
+          bool? result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReportIssuePage()),
+          );
+          if (result == true) {
+            _fetchIssues(); 
+          }
+        },
+        backgroundColor: colorScheme.secondary,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
