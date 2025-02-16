@@ -1,4 +1,4 @@
-package com.example.scipio
+package com.halcyon.scipio
 
 import io.flutter.embedding.android.FlutterActivity
 
