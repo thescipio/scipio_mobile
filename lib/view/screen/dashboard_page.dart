@@ -6,25 +6,16 @@ import 'package:scipio/view/screen/login_page.dart';
 import 'package:scipio/view/screen/issues_detail.dart';
 import 'new_post_page.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const IssueTrackerPage();
-  }
+  _DashboardPageState createState() => _DashboardPageState();
 }
 
-class IssueTrackerPage extends StatefulWidget {
-  const IssueTrackerPage({super.key});
-
-  @override
-  _IssueTrackerPageState createState() => _IssueTrackerPageState();
-}
-
-class _IssueTrackerPageState extends State<IssueTrackerPage> {
+class _DashboardPageState extends State<DashboardPage> {
   final Dio _dio = Dio();
-  List<dynamic> _issues = [];
+  List<dynamic>? _issues;
 
   @override
   void initState() {
@@ -37,7 +28,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
       final response = await _dio.get('https://canna.hlcyn.co/api/issue');
       if (response.statusCode == 200) {
         setState(() {
-          _issues = response.data['data'];
+          _issues = response.data['data'] ?? [];
         });
       } else {
         print('Failed to load issues: ${response.statusCode}');
@@ -51,6 +42,12 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
     final DateTime parsedDate = DateTime.parse(date);
     final DateFormat formatter = DateFormat('MMM dd, yyyy');
     return formatter.format(parsedDate);
+  }
+
+  void _refreshData() {
+    setState(() {
+      _fetchIssues();
+    });
   }
 
   @override
@@ -100,18 +97,30 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: _issues.length,
-                itemBuilder: (context, index) {
-                  final issue = _issues[index];
-                  return IssueCard(
-                    title: issue['title'],
-                    author: issue['author_name'],
-                    device: issue['device_parsed'],
-                    date: _formatDate(issue['date']),
-                  );
-                },
-              ),
+              child: _issues == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : _issues!.isEmpty
+                      ? const Center(
+                          child: Text(
+                            '¯\\_(ツ)_/¯\nNo Issues',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _issues!.length,
+                          itemBuilder: (context, index) {
+                            final issue = _issues![index];
+                            return IssueCard(
+                              issueId: issue['issue_id'],
+                              title: issue['title'],
+                              author: issue['author_name'],
+                              device: issue['device_parsed'],
+                              date: _formatDate(issue['date']),
+                              onRefresh: _refreshData,
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -123,7 +132,7 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
             MaterialPageRoute(builder: (context) => const ReportIssuePage()),
           );
           if (result == true) {
-            _fetchIssues(); 
+            _fetchIssues();
           }
         },
         backgroundColor: colorScheme.secondary,
@@ -134,17 +143,21 @@ class _IssueTrackerPageState extends State<IssueTrackerPage> {
 }
 
 class IssueCard extends StatelessWidget {
+  final String issueId;
   final String title;
   final String author;
   final String device;
   final String date;
+  final VoidCallback onRefresh;
 
   const IssueCard({
     super.key,
+    required this.issueId,
     required this.title,
     required this.author,
     required this.device,
     required this.date,
+    required this.onRefresh,
   });
 
   @override
@@ -153,18 +166,18 @@ class IssueCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        bool? result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => IssueDetailPage(
-              title: title,
-              author: author,
-              device: device,
-              date: date,
+              issueId: issueId,
             ),
           ),
         );
+        if (result == true) {
+          onRefresh();
+        }
       },
       child: Card(
         color: colorScheme.surfaceVariant,

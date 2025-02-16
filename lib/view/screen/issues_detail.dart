@@ -1,18 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
-class IssueDetailPage extends StatelessWidget {
-  final String title;
-  final String author;
-  final String device;
-  final String date;
+class IssueDetailPage extends StatefulWidget {
+  final String issueId;
 
   const IssueDetailPage({
     super.key,
-    required this.title,
-    required this.author,
-    required this.device,
-    required this.date,
+    required this.issueId,
   });
+
+  @override
+  _IssueDetailPageState createState() => _IssueDetailPageState();
+}
+
+class _IssueDetailPageState extends State<IssueDetailPage> {
+  final Dio _dio = Dio();
+  Map<String, dynamic> _issueDetails = {};
+  List<dynamic> _comments = [];
+  final TextEditingController _commentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchIssueDetails();
+    _fetchComments();
+  }
+
+  Future<void> _fetchIssueDetails() async {
+    try {
+      final response = await _dio
+          .get('https://canna.hlcyn.co/api/issue/post/${widget.issueId}');
+      if (response.statusCode == 200) {
+        setState(() {
+          _issueDetails = response.data['data'];
+        });
+      } else {
+        print('Failed to load issue details: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching issue details: $e');
+    }
+  }
+
+  Future<void> _fetchComments() async {
+    try {
+      final response = await _dio
+          .get('https://canna.hlcyn.co/api/comment/${widget.issueId}');
+      if (response.statusCode == 200) {
+        setState(() {
+          _comments = response.data['data'] ?? [];
+        });
+      } else {
+        print('Failed to load comments: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching comments: $e');
+    }
+  }
+
+  Future<void> _sendComment() async {
+    final String comment = _commentController.text.trim();
+    if (comment.isEmpty) return;
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? authToken = prefs.getString('auth_token');
+
+    if (authToken == null) {
+      print('No auth token found');
+      return;
+    }
+
+    try {
+      if (comment == "/close") {
+        final response = await _dio.delete(
+          'https://canna.hlcyn.co/api/issue/post/${widget.issueId}',
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $authToken',
+            },
+          ),
+        );
+
+        if (response.statusCode == 200) {
+          Navigator.pop(context, true);
+        } else if (response.statusCode == 401) {
+          _showUnauthorizedDialog();
+        } else {
+          print('Failed to delete issue: ${response.statusCode}');
+        }
+      } else {
+        final response = await _dio.post(
+          'https://canna.hlcyn.co/api/comment/${widget.issueId}',
+          data: {'description': comment},
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $authToken',
+            },
+          ),
+        );
+
+        if (response.statusCode == 200) {
+          _commentController.clear();
+          _fetchComments();
+        } else {
+          print('Failed to send comment: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error sending comment: $e');
+    }
+  }
+
+  void _showUnauthorizedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Unauthorized'),
+          content: Text('You are unauthorized for this action!'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatDate(String date) {
+    final DateTime parsedDate = DateTime.parse(date);
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
+    return formatter.format(parsedDate);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +156,7 @@ class IssueDetailPage extends StatelessWidget {
           },
         ),
         title: Text(
-          title,
+          _issueDetails['title'] ?? 'Loading...',
           style: TextStyle(
             color: colorScheme.onBackground,
             fontSize: 24,
@@ -39,36 +164,35 @@ class IssueDetailPage extends StatelessWidget {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            IssueHeader(
-              author: author,
-              device: device,
-              date: date,
-            ),
-            const SizedBox(height: 16),
-            const IssueDetail(),
-            const SizedBox(height: 16),
-            const CommentSection(),
-            const SizedBox(height: 16),
-            const Divider(color: Colors.grey),
-            const SizedBox(height: 16),
-            const AddCommentSection(),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FloatingActionButton(
-                onPressed: () {},
-                backgroundColor: colorScheme.secondary,
-                child: const Icon(Icons.send),
+      body: _issueDetails.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IssueHeader(
+                    author: _issueDetails['author_name'],
+                    device: _issueDetails['device_parsed'],
+                    date: _issueDetails['date'],
+                  ),
+                  const SizedBox(height: 16),
+                  IssueDetail(
+                    description: _issueDetails['description'],
+                  ),
+                  const SizedBox(height: 16),
+                  CommentSection(comments: _comments),
+                  const SizedBox(height: 16),
+                  const Divider(color: Colors.grey),
+                  const SizedBox(height: 16),
+                  AddCommentSection(
+                    commentController: _commentController,
+                    onSend: _sendComment,
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -112,7 +236,12 @@ class IssueHeader extends StatelessWidget {
 }
 
 class IssueDetail extends StatelessWidget {
-  const IssueDetail({super.key});
+  final String description;
+
+  const IssueDetail({
+    super.key,
+    required this.description,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -132,13 +261,14 @@ class IssueDetail extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: colorScheme.surfaceVariant,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-            'Google photo keeps crashing while connecting to a wifi Edited',
+            description,
             style: TextStyle(color: colorScheme.onSurface),
           ),
         ),
@@ -148,7 +278,9 @@ class IssueDetail extends StatelessWidget {
 }
 
 class CommentSection extends StatelessWidget {
-  const CommentSection({super.key});
+  final List<dynamic> comments;
+
+  const CommentSection({super.key, required this.comments});
 
   @override
   Widget build(BuildContext context) {
@@ -167,42 +299,58 @@ class CommentSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        ...comments.map((comment) => Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.comment, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text('zoro', style: TextStyle(color: colorScheme.onSurface)),
+                  Row(
+                    children: [
+                      const Icon(Icons.comment, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(comment['author_name'],
+                          style: TextStyle(color: colorScheme.onSurface)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    comment['description'],
+                    style: TextStyle(color: colorScheme.onSurface),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatDate(comment['date']),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'SS bug bhai',
-                style: TextStyle(color: colorScheme.onSurface),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Feb 3, 2025',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+            )),
       ],
     );
+  }
+
+  String _formatDate(String date) {
+    final DateTime parsedDate = DateTime.parse(date);
+    final DateFormat formatter = DateFormat('MMM dd, yyyy');
+    return formatter.format(parsedDate);
   }
 }
 
 class AddCommentSection extends StatelessWidget {
-  const AddCommentSection({super.key});
+  final TextEditingController commentController;
+  final VoidCallback onSend;
+
+  const AddCommentSection({
+    super.key,
+    required this.commentController,
+    required this.onSend,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +370,7 @@ class AddCommentSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextField(
+          controller: commentController,
           decoration: InputDecoration(
             filled: true,
             fillColor: colorScheme.surfaceVariant,
@@ -237,6 +386,15 @@ class AddCommentSection extends StatelessWidget {
         Text(
           'Type /close to close this issue (Author Only)',
           style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FloatingActionButton(
+            onPressed: onSend,
+            backgroundColor: colorScheme.secondary,
+            child: const Icon(Icons.send),
+          ),
         ),
       ],
     );
