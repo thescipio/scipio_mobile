@@ -174,7 +174,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                   IssueHeader(
                     author: _issueDetails['author_name'],
                     device: _issueDetails['device_parsed'],
-                    date: _issueDetails['date'],
+                    date: _formatDate(_issueDetails['date']),
                   ),
                   const SizedBox(height: 16),
                   IssueDetail(
